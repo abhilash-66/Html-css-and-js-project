@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Galaxy Employee Directory 🌌</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; font-family: 'Poppins', sans-serif; color: #fff; overflow-x: hidden; background: #000; }
+
+    /* Galaxy Background Upgrade */
+    .background {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(circle at 20% 20%, #0d0d40 0%, #000010 100%);
+      overflow: hidden;
+      z-index: -2;
+    }
+    .stars {
+      position: absolute; width: 100%; height: 100%;
+      background: url('https://i.ibb.co/Y3pY4g8/stars.png') repeat;
+      animation: moveStars 500s linear infinite;
+      opacity: 0.5;
+    }
+    .shooting-star {
+      position: absolute; top: -50px; width: 2px; height: 100px;
+      background: linear-gradient(-45deg, white, rgba(255,255,255,0));
+      animation: shooting 10s infinite;
+      opacity: 0.7;
+    }
+    @keyframes moveStars { from {background-position:0 0;} to {background-position:10000px 10000px;} }
+    @keyframes shooting {
+      0% {transform: translateX(0) translateY(0) rotate(45deg); opacity: 1;}
+      100% {transform: translateX(1000px) translateY(500px) rotate(45deg); opacity: 0;}
+    }
+
+    /* Title */
+    .title {
+      text-align: center;
+      font-size: 4rem;
+      margin: 40px 20px;
+      animation: popUp 1.5s ease forwards;
+      text-shadow: 0 0 15px rgba(255,255,255,0.9), 0 0 30px rgba(183,109,244,0.8);
+    }
+    @keyframes popUp { 0% { transform: scale(0.7); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+    /* Filters */
+    .find-container {
+      text-align: center;
+      margin: 20px;
+    }
+    select, button {
+      padding: 12px 20px;
+      font-size: 16px;
+      border-radius: 5px;
+      margin: 5px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid #fff;
+      color: #fff;
+      transition: 0.3s;
+    }
+    select:hover, button:hover {
+      background: rgba(255, 255, 255, 0.4);
+    }
+    select option[value="male"] { color: lightblue; background: #111; }
+    select option[value="female"] { color: pink; background: #111; }
+
+    /* Table */
+    .table-container {
+      padding: 20px;
+      backdrop-filter: blur(15px);
+      border-radius: 15px;
+      max-height: 65vh;
+      overflow-y: auto;
+      margin: 20px;
+    }
+    table {
+      width: 100%;
+      background: rgba(0,0,0,0.6);
+      border-spacing: 0;
+      border-radius: 20px;
+      overflow: hidden;
+      animation: fadeInTable 1.5s ease forwards, floatTable 8s ease-in-out infinite alternate;
+    }
+    th, td {
+      padding: 15px;
+      text-align: center;
+      font-size: 15px;
+    }
+    th {
+      background: linear-gradient(135deg, #6a0dad, #b76df4);
+      color: white;
+      position: relative;
+    }
+    th::after {
+      content: "";
+      position: absolute;
+      top: 0; left: -75%;
+      width: 50%; height: 100%;
+      background: rgba(255,255,255,0.15);
+      transform: skewX(-25deg);
+      animation: shine 3s infinite;
+    }
+    @keyframes shine { 0% { left: -75%; } 100% { left: 125%; } }
+    td {
+      background: rgba(255,255,255,0.1);
+      color: #e0e0e0;
+    }
+    tbody tr:hover {
+      background: rgba(255,255,255,0.2);
+      transform: scale(1.02);
+      cursor: pointer;
+    }
+    @keyframes fadeInTable { from {opacity:0;transform:translateY(20px);} to {opacity:1;transform:translateY(0);} }
+    @keyframes floatTable { 0% { transform: translateY(0px); } 100% { transform: translateY(-12px); } }
+
+    /* Map */
+    #map {
+      height: 400px;
+      margin: 30px 20px;
+      border-radius: 15px;
+      overflow: hidden;
+    }
+    .flag { width: 24px; height: 18px; margin-right: 8px; vertical-align: middle; border-radius: 3px; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .title { font-size: 2.5rem; }
+      select, button { padding: 10px; font-size: 14px; }
+      th, td { padding: 10px; font-size: 13px; }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="background">
+  <div class="stars"></div>
+  <div class="shooting-star" style="top: 10%; left: 5%; animation-delay: 2s;"></div>
+  <div class="shooting-star" style="top: 30%; left: 15%; animation-delay: 6s;"></div>
+</div>
+
+<div class="title">Galaxy Employee Directory 🌟</div>
+
+<div class="find-container">
+  <select id="genderFilter">
+    <option value="all">All</option>
+    <option value="male">Male</option>
+    <option value="female">Female</option>
+  </select>
+  <button onclick="filterTable()">Find</button>
+</div>
+
+<div class="table-container">
+  <table id="employeeTable">
+    <thead>
+      <tr>
+        <th>Name</th><th>Code</th><th>Age</th><th>Phone</th><th>Email</th><th>Country</th><th>Position</th><th>Department</th><th>Join Date</th><th>Balance</th><th>Username</th><th>Gender</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="male">
+        <td>Ram</td><td>4.ba</td><td>28</td><td>665646460</td><td>ram@example.com</td>
+        <td onclick="openMap(28.3949, 84.1240, 'Nepal')">
+          <img class="flag" src="https://flagcdn.com/w40/np.png">Nepal
+        </td>
+        <td>Manager</td><td>Sales</td><td>2020-01-15</td><td>$454.2</td><td>yryurr54545</td><td>Male</td>
+      </tr>
+      <tr class="female">
+        <td>Sita</td><td>52.hb</td><td>25</td><td>7419421</td><td>sita@example.com</td>
+        <td onclick="openMap(37.0902, -95.7129, 'USA')">
+          <img class="flag" src="https://flagcdn.com/w40/us.png">USA
+        </td>
+        <td>Developer</td><td>IT</td><td>2021-05-22</td><td>$656.2</td><td>tyfheirey</td><td>Female</td>
+      </tr>
+      <tr class="male">
+        <td>Amit</td><td>23.da</td><td>30</td><td>1234567890</td><td>amit@example.com</td>
+        <td onclick="openMap(20.5937, 78.9629, 'India')">
+          <img class="flag" src="https://flagcdn.com/w40/in.png">India
+        </td>
+        <td>Designer</td><td>Marketing</td><td>2019-11-10</td><td>$789.6</td><td>ytfghtr876</td><td>Male</td>
+      </tr>
+      <tr class="female">
+        <td>Anna</td><td>88.yy</td><td>29</td><td>1239874560</td><td>anna@example.com</td>
+        <td onclick="openMap(51.1657, 10.4515, 'Germany')">
+          <img class="flag" src="https://flagcdn.com/w40/de.png">Germany
+        </td>
+        <td>HR</td><td>HR Dept</td><td>2022-03-15</td><td>$900.0</td><td>annahr21</td><td>Female</td>
+      </tr>
+      <tr class="male">
+        <td>Leo</td><td>99.xs</td><td>32</td><td>7894561230</td><td>leo@example.com</td>
+        <td onclick="openMap(35.6895, 139.6917, 'Japan')">
+          <img class="flag" src="https://flagcdn.com/w40/jp.png">Japan
+        </td>
+        <td>Technician</td><td>Maintenance</td><td>2018-07-30</td><td>$720.5</td><td>leotech90</td><td>Male</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div id="map"></div>
+
+<script>
+  function filterTable() {
+    var gender = document.getElementById("genderFilter").value;
+    var rows = document.querySelectorAll("#employeeTable tbody tr");
+    rows.forEach(function(row) {
+      if (gender === "all" || row.classList.contains(gender)) {
+        row.style.display = "";
+      } else {
+        row.style.display = "none";
+      }
+    });
+  }
+
+  var map;
+  function openMap(lat, lon, cityName) {
+    if (!map) {
+      map = L.map('map').setView([lat, lon], 5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map);
+    } else {
+      map.setView([lat, lon], 5);
+    }
+    L.marker([lat, lon]).addTo(map)
+      .bindPopup(`<b>${cityName}</b><br>Lat: ${lat}<br>Lon: ${lon}`)
+      .openPopup();
+  }
+
+  openMap(28.3949, 84.1240, 'Nepal');
+</script>
+
+</body>
+</html>
